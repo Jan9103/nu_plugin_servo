@@ -1,46 +1,21 @@
 pub mod commands;
-// pub mod custom_values;
+
+#[cfg(feature = "blitz_backend")]
+mod blitz_backend;
+#[cfg(feature = "blitz_backend")]
+pub use blitz_backend::BlitzBackend;
+#[cfg(feature = "scraper_backend")]
+mod scraper_backend;
+#[cfg(feature = "scraper_backend")]
+pub use scraper_backend::ScraperBackend;
+
 pub mod plugin_interface;
 
-use html5ever::{QualName, tendril::TendrilSink};
-use nu_protocol::{Record, Span, Value};
-use scraper::ElementRef;
-use xml5ever::driver::XmlParseOpts;
+use html5ever::QualName;
+use nu_protocol::{LabeledError, Span, Value};
 
-pub fn parse_html<R>(document: &mut R) -> std::result::Result<scraper::Html, std::io::Error>
-where
-    R: std::io::Read,
-{
-    html5ever::parse_document(
-        scraper::HtmlTreeSink::new(scraper::Html::new_document()),
-        html5ever::ParseOpts {
-            tree_builder: html5ever::tree_builder::TreeBuilderOpts {
-                drop_doctype: true,
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-    )
-    .from_utf8()
-    .read_from(document)
-}
-pub fn parse_xml<R>(document: &mut R) -> std::result::Result<scraper::Html, std::io::Error>
-where
-    R: std::io::Read,
-{
-    xml5ever::driver::parse_document(
-        scraper::HtmlTreeSink::new(scraper::Html::new_document()),
-        XmlParseOpts::default(),
-    )
-    .from_utf8()
-    .read_from(document)
-}
-
-//pub fn parse_css(raw_css: &str) {
-//    let mut parser_input = cssparser::ParserInput::new(raw_css);
-//    let mut parser = cssparser::Parser::new(&mut parser_input);
-//    parser.try_parse(thing)
-//}
+#[cfg(not(any(feature = "blitz_backend", feature = "scraper_backend")))]
+compile_error!("You should enable either blitz_backend or scraper_backend (or both)");
 
 fn format_qual_name(qn: &QualName) -> String {
     if let Some(p) = &qn.prefix {
@@ -54,118 +29,61 @@ fn format_qual_name(qn: &QualName) -> String {
     }
 }
 
-pub fn html_element_to_nu(span: Span, element: ElementRef<'_>) -> Value {
-    let mut out = Record::new();
-    out.push(
-        "tag",
-        Value::string(format_qual_name(&element.value().name), span),
-    );
-    let mut attributes = Record::new();
-    for attr in element.value().attrs() {
-        if attr.0 == "id" || attr.0 == "classes" {
-            continue;
-        }
-        attributes.push(attr.0, Value::string(attr.1, span));
-    }
-    out.push("attributes", Value::record(attributes, span));
-    out.push(
-        "id",
-        if let Some(id) = element.value().id() {
-            Value::string(id, span)
-        } else {
-            Value::nothing(span)
-        },
-    );
-    out.push(
-        "classes",
-        Value::list(
-            element
-                .value()
-                .classes()
-                .map(|c| -> Value { Value::string(c, span) })
-                .collect::<Vec<Value>>(),
-            span,
-        ),
-    );
-    out.push(
-        "content",
-        Value::list(
-            element
-                .children()
-                .filter_map(|child| -> Option<Value> {
-                    match child.value() {
-                        scraper::Node::Document => None,
-                        scraper::Node::Fragment => None,
-                        scraper::Node::Doctype(_doctype) => None,
-                        scraper::Node::Comment(_comment) => None, // TODO
-                        scraper::Node::Text(text) => Some(Value::string(&text.text, span)),
-                        scraper::Node::Element(_element) => {
-                            // let a = ElementRef::wrap(child);
-                            Some(html_element_to_nu(
-                                span,
-                                ElementRef::wrap(child)
-                                    .expect("child of type Element is not of type Element"),
-                            ))
-                            // todo!()
-                        }
-                        scraper::Node::ProcessingInstruction(_processing_instruction) => None,
-                    }
-                })
-                .collect::<Vec<Value>>(),
-            span,
-        ),
-    );
-    Value::record(out, span)
+#[derive(Copy, Clone, Debug)]
+pub enum NuDataFormat {
+    Html,
+    Xml,
+    FromXmlCompat,
+    InnerHtml,
+    OuterHtml,
 }
-pub fn xml_element_to_nu(span: Span, element: ElementRef<'_>, text_as_elements: bool) -> Value {
-    let mut out = Record::new();
-    out.push(
-        "tag",
-        Value::string(format_qual_name(&element.value().name), span),
-    );
-    let mut attributes = Record::new();
-    for attr in element.value().attrs() {
-        attributes.push(attr.0, Value::string(attr.1, span));
+impl NuDataFormat {
+    pub fn parse(arg: Option<Value>, default: Self) -> Result<Self, LabeledError> {
+        match arg {
+            Some(Value::String { val, .. }) if val.as_str() == "html" => Ok(Self::Html),
+            Some(Value::String { val, .. }) if val.as_str() == "xml" => Ok(Self::Xml),
+            Some(Value::String { val, .. }) if val.as_str() == "from xml" => {
+                Ok(Self::FromXmlCompat)
+            }
+            Some(Value::String { val, .. }) if val.as_str() == "inner html" => Ok(Self::InnerHtml),
+            Some(Value::String { val, .. }) if val.as_str() == "outer html" => Ok(Self::OuterHtml),
+            Some(Value::Nothing { .. }) | None => Ok(default),
+            _ => Err(LabeledError::new("Invalid '--format' argument")),
+        }
     }
-    out.push("attributes", Value::record(attributes, span));
-    out.push(
-        "content",
-        Value::list(
-            element
-                .children()
-                .filter_map(|child| -> Option<Value> {
-                    match child.value() {
-                        scraper::Node::Document => None,
-                        scraper::Node::Fragment => None,
-                        scraper::Node::Doctype(_doctype) => None,
-                        scraper::Node::Comment(_comment) => None, // TODO
-                        scraper::Node::Text(text) => {
-                            if text_as_elements {
-                                let mut r = Record::new();
-                                r.push("tag", Value::nothing(span));
-                                r.push("attributes", Value::nothing(span));
-                                r.push("content", Value::string(&text.text, span));
-                                Some(Value::record(r, span))
-                            } else {
-                                Some(Value::string(&text.text, span))
-                            }
-                        }
-                        scraper::Node::Element(_element) => {
-                            // let a = ElementRef::wrap(child);
-                            Some(xml_element_to_nu(
-                                span,
-                                ElementRef::wrap(child)
-                                    .expect("child of type Element is not of type Element"),
-                                text_as_elements,
-                            ))
-                            // todo!()
-                        }
-                        scraper::Node::ProcessingInstruction(_processing_instruction) => None,
-                    }
-                })
-                .collect::<Vec<Value>>(),
-            span,
-        ),
-    );
-    Value::record(out, span)
+}
+
+pub trait HtmlBackend {
+    type Document;
+    type Node<'a>;
+
+    fn parse(&self, document: &Value) -> Result<Self::Document, LabeledError>;
+
+    fn get_root_node<'a>(&self, html: &'a Self::Document) -> Result<Self::Node<'a>, LabeledError>;
+
+    fn css_query<'a>(
+        &self,
+        html: &'a Self::Document,
+        selector: &str,
+    ) -> Result<Vec<Self::Node<'a>>, LabeledError>;
+
+    fn inner_html(
+        &self,
+        html: &Self::Document,
+        node: Self::Node<'_>,
+    ) -> Result<String, LabeledError>;
+
+    fn outer_html(
+        &self,
+        html: &Self::Document,
+        node: Self::Node<'_>,
+    ) -> Result<String, LabeledError>;
+
+    fn node2nu(
+        &self,
+        html: &Self::Document,
+        node: Self::Node<'_>,
+        format: NuDataFormat,
+        span: Span,
+    ) -> Result<Value, LabeledError>;
 }

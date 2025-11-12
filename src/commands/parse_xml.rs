@@ -1,15 +1,15 @@
 use nu_plugin::SimplePluginCommand;
-use nu_protocol::{LabeledError, Signature, Type, Value};
+use nu_protocol::{Signature, SyntaxShape, Type};
 
-use crate::xml_element_to_nu;
+use crate::{HtmlBackend, NuDataFormat};
 
-pub struct ParseHtmlCommand;
+pub struct ParseXmlCommand;
 
-impl SimplePluginCommand for ParseHtmlCommand {
+impl SimplePluginCommand for ParseXmlCommand {
     type Plugin = crate::plugin_interface::NuPluginServo;
 
     fn name(&self) -> &str {
-        "servo html parse"
+        "servo xml parse"
     }
 
     fn signature(&self) -> nu_protocol::Signature {
@@ -18,11 +18,7 @@ impl SimplePluginCommand for ParseHtmlCommand {
                 (Type::String, Type::record()),
                 (Type::Binary, Type::record()),
             ])
-            .switch(
-                "from-xml-compat",
-                "generate the same output format as 'from xml'",
-                None,
-            )
+            .named("format", SyntaxShape::String, "", None)
     }
 
     fn description(&self) -> &str {
@@ -36,27 +32,10 @@ impl SimplePluginCommand for ParseHtmlCommand {
         call: &nu_plugin::EvaluatedCall,
         input: &nu_protocol::Value,
     ) -> Result<nu_protocol::Value, nu_protocol::LabeledError> {
-        let fxc: bool = call.has_flag("from-xml-compat").map_err(|e| {
-            LabeledError::new(format!(
-                "--from-xml-compat is a flag, not whatever you tried: {e}"
-            ))
-        })?;
-
-        let mut document: &[u8] = match input {
-            Value::String { val, .. } => val.as_bytes(),
-            Value::Binary { val, .. } => val,
-            _ => {
-                return Err(LabeledError::new("Input type neither string nor binary"));
-            }
-        };
-
-        let html = match crate::parse_html(&mut document) {
-            Ok(v) => v,
-            Err(e) => {
-                return Err(nu_protocol::LabeledError::new(format!("invalid HTML: {e}")));
-            }
-        };
-
-        Ok(xml_element_to_nu(call.head, html.root_element(), fxc))
+        let format = NuDataFormat::parse(call.get_flag_value("format"), NuDataFormat::Xml)?;
+        let b = crate::ScraperBackend;
+        let xml = b.parse_xml(input)?;
+        let root = b.get_root_node(&xml)?;
+        b.node2nu(&xml, root, format, call.head)
     }
 }
