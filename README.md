@@ -5,12 +5,12 @@ It works, but is still missing a lot and it might take a while before i finish i
 
 ## Commands
 
-* `servo html parse`: `string` -> `html_node`
-* `servo html query <css-query>`: `string` -> `list<string>`
-* `servo html query_parse <css-query>`: `string` -> `list<html_node>`
-* `servo xml parse`: `string` -> `xml_node`
-* `servo xml query <css-query>`: `string` -> `list<string>`
-* `servo xml query_parse <css-query>`: `string` -> `list<xml_node>`
+* `servo html parse`: `string` -> `$format`
+* `servo html query <css-query>`: `string` -> `list<$format>`
+* `servo xml parse`: `string` -> `$format`
+* `servo xml query <css-query>`: `string` -> `list<$format>`
+* `servo data-url parse`: `string` -> `record<..>`
+* `servo mime parse`: `string` -> `record<..>`
 
 Notes:
 * you can `alias 'from html' = servo html parse` - it is not done by default since the format is.. unique
@@ -18,7 +18,15 @@ Notes:
 
 ## Data-Formats
 
-**html node:** (example)
+almost all commands support the `--format <string>` flag.
+possible values:
+* `html` (HTML node) (default for `servo html` commands)
+* `xml` (XML node) (default for `servo xml` commands)
+* `from xml` (same as nu's `from xml`)
+* `inner html` (`string`)
+* `outer html` (`string`)
+
+### HTML node:
 
 ```nushell
 {
@@ -33,7 +41,7 @@ Notes:
 }
 ```
 
-**xml node:** (example)
+### XML node:
 
 if you pass `--from-xml-compat` it will have the same format as `from xml` instead.
 
@@ -48,12 +56,21 @@ if you pass `--from-xml-compat` it will have the same format as `from xml` inste
 }
 ```
 
+## Build Flags
+
+* `xml`: the XML commands (adds the `scraper_backend`)
+* backends (multiple can be active at once):
+  * `scraper_backend`: uses the [scraper][] crate (supports XML)
+  * `blitz_backend`: uses the [blitz][] project (will in the future hopefully make it possible to run and render HTML in `nu_plugin_servo`)
+
 ## Credits
 
 * [servo][]: all the parsing, etc
 * [nushell][]
-* [scraper][]: internal [DOM](https://en.wikipedia.org/wiki/Document_Object_Model), css-query
+* [scraper][] (one backend)
+* [blitz][] (one backend)
 
 [servo]: https://servo.org
 [nushell]: https://nushell.sh
 [scraper]: https://crates.io/crates/scraper
+[blitz]: https://github.com/DioxusLabs/blitz
