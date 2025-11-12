@@ -2,6 +2,8 @@ use nu_plugin::SimplePluginCommand;
 use nu_protocol::{LabeledError, Signature, SyntaxShape, Type, Value};
 use scraper::Selector;
 
+use crate::{html_element_to_nu, xml_element_to_nu};
+
 pub struct QueryHtmlCommand;
 
 impl SimplePluginCommand for QueryHtmlCommand {
@@ -90,6 +92,7 @@ impl SimplePluginCommand for QueryParseHtmlCommand {
                 (Type::Binary, Type::list(Type::record())),
             ])
             .required("css_selector", SyntaxShape::String, "css selector")
+            .named("format", SyntaxShape::String, r#"one of: "html" (default), "xml" (servo xml parse), "from xml" (nu's builtin xml parser)"#, None)
     }
 
     fn description(&self) -> &str {
@@ -103,6 +106,19 @@ impl SimplePluginCommand for QueryParseHtmlCommand {
         call: &nu_plugin::EvaluatedCall,
         input: &nu_protocol::Value,
     ) -> Result<nu_protocol::Value, nu_protocol::LabeledError> {
+        let format: String = match call.get_flag_value("format") {
+            Some(Value::String { val, .. })
+                if ["html", "xml", "from xml"].contains(&val.as_str()) =>
+            {
+                val
+            }
+            None => "html".into(),
+            _ => {
+                return Err(LabeledError::new(
+                    "Invalid '--format' argument - see '--help'",
+                ));
+            }
+        };
         let css_selector: String = call.req::<String>(0)?;
         let css_selector: Selector = Selector::parse(&css_selector)
             .map_err(|err| LabeledError::new(format!("Failed to parse CSS: {err}")))?;
@@ -124,7 +140,14 @@ impl SimplePluginCommand for QueryParseHtmlCommand {
 
         Ok(Value::list(
             html.select(&css_selector)
-                .map(|matched_html| -> Value { crate::html_element_to_nu(call.head, matched_html) })
+                .map(|matched_html| -> Value {
+                    match format.as_str() {
+                        "html" => html_element_to_nu(call.head, matched_html),
+                        "xml" => xml_element_to_nu(call.head, matched_html, false),
+                        "from xml" => xml_element_to_nu(call.head, matched_html, true),
+                        _ => panic!("impossible format value in parse_html"),
+                    }
+                })
                 .collect::<Vec<Value>>(),
             call.head,
         ))
