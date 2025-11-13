@@ -7,9 +7,18 @@ impl nu_plugin::Plugin for NuPluginServo {
 
     fn commands(&self) -> Vec<Box<dyn nu_plugin::PluginCommand<Plugin = Self>>> {
         vec![
-            Box::new(crate::commands::query_html::QueryHtmlCommand),
-            Box::new(crate::commands::query_html::QueryParseHtmlCommand),
+            // +-----+
+            // | XML |
+            // +-----+
+            #[cfg(feature = "xml")]
+            Box::new(crate::commands::parse_xml::ParseXmlCommand),
+            #[cfg(feature = "xml")]
+            Box::new(crate::commands::query_xml::QueryXmlCommand),
+            // +------+
+            // | HTML |
+            // +------+
             Box::new(crate::commands::parse_html::ParseHtmlCommand),
+            Box::new(crate::commands::query_html::QueryHtmlCommand),
         ]
     }
 }
