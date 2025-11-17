@@ -3,6 +3,9 @@
 My second attempt at cramming [servo][] into a [nushell][] plugin.  
 It works, but is still missing a lot and it might take a while before i finish it.
 
+You are viewing the development-branch. Please use a [release][] instead.  
+You can view a changelog [here](./CHANGELOG.md).
+
 ## Commands
 
 * `servo html parse`: `string` -> `$format`
@@ -74,3 +77,5 @@ if you pass `--from-xml-compat` it will have the same format as `from xml` inste
 [nushell]: https://nushell.sh
 [scraper]: https://crates.io/crates/scraper
 [blitz]: https://github.com/DioxusLabs/blitz
+
+[release]: https://github.com/Jan9103/nu_plugin_servo/releases
