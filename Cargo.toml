@@ -4,19 +4,30 @@ version = "0.108.1"
 edition = "2024"
 
 [features]
-default = ["scraper_backend", "xml", "data_url", "mime"]
+default = ["scraper_backend", "xml", "data_url", "mime", "render"]
 blitz_backend = ["dep:blitz-dom", "dep:blitz-html"]
 scraper_backend = ["dep:scraper"]
 xml = ["scraper_backend", "dep:xml5ever"]
 data_url = ["dep:data-url"]
 mime = ["dep:mime"]
+render = ["blitz_backend", "networking", "dep:anyrender_vello", "dep:blitz-paint", "dep:vello", "dep:anyrender", "dep:blitz-traits", "dep:png"]
+networking = ["blitz_backend", "dep:blitz-net", "dep:tokio"]
 
 [dependencies]
 # scraper-backend
 scraper     = {version = "^0.24.0", optional = true}
+
 # blitz-backend
-blitz-dom   = {version = "^0.2.4", optional = true}
-blitz-html  = {version = "^0.2.0", optional = true}
+blitz-dom       = {version = "^0.2.4", optional = true}
+blitz-html      = {version = "^0.2.0", optional = true}
+# blitz networking
+blitz-net       = {version = "^0.2.0", optional = true}
+# blitz render
+blitz-paint     = {version = "^0.2.0", optional = true}
+blitz-traits    = {version = "^0.2.0", optional = true}
+anyrender       = {version = "^0.6", optional = true}
+anyrender_vello = {version = "^0.6", optional = true}
+vello           = {version = "^0.6", optional = true}
 
 # servo
 #cssparser   = {version = "^0.35.0", optional = false}
@@ -33,4 +44,6 @@ nu-plugin   = "0.108.0"
 nu-protocol = "0.108.0"
 
 # other
-mime = {version = "^0.3.17", optional = true}
+mime  = {version = "^0.3.17",  optional = true}
+tokio = {version = "^1.42",    optional = true}
+png   = {version = "^0.17.16", optional = true}
