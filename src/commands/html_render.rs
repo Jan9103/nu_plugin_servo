@@ -107,10 +107,12 @@ impl SimplePluginCommand for HtmlRenderCommand {
         // load HTML
         let b = BlitzBackend;
         let mut dom = if let Some(base_url) = base_url {
-            b.parse_with_web(input, base_url, viewport)
+            b.parse_with_web(input, base_url, viewport)?
         } else {
-            b.parse(input)
-        }?;
+            let mut dom = b.parse(input)?;
+            dom.set_viewport(viewport);
+            dom
+        };
 
         // render
         dom.resolve(0.0);
