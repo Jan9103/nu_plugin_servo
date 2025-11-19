@@ -1,3 +1,5 @@
+#[cfg(feature = "render")]
+pub mod html_render;
 pub mod parse_html;
 pub mod query_html;
 
