@@ -62,6 +62,8 @@ if you pass `--from-xml-compat` it will have the same format as `from xml` inste
 ## Build Flags
 
 * `xml`: the XML commands (adds the `scraper_backend`)
+* `data_url`: adds `servo data-url` commands
+* `mime`: adds `servo mime` commands
 * backends (multiple can be active at once):
   * `scraper_backend`: uses the [scraper][] crate (supports XML)
   * `blitz_backend`: uses the [blitz][] project (will in the future hopefully make it possible to run and render HTML in `nu_plugin_servo`)
