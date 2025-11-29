@@ -1,6 +1,6 @@
 [package]
 name = "nu_plugin_servo"
-version = "0.108.1"
+version = "0.109.0"
 edition = "2024"
 
 [features]
@@ -29,8 +29,8 @@ stylo       = "^0.8.0"
 data-url    = {version = "^0.3.2", optional = true}
 
 # nu
-nu-plugin   = "0.108.0"
-nu-protocol = "0.108.0"
+nu-plugin   = "0.109.0"
+nu-protocol = "0.109.0"
 
 # other
 mime = {version = "^0.3.17", optional = true}
