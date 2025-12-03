@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.109.1] - 2025-12-03
+
+## [0.109.0] - 2025-11-29
+
 ### Added
 
 * `servo data-url parse`: Parse `data:`-urls
