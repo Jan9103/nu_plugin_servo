@@ -12,6 +12,8 @@ impl nu_plugin::Plugin for NuPluginServo {
             // +------+
             Box::new(crate::commands::parse_html::ParseHtmlCommand),
             Box::new(crate::commands::query_html::QueryHtmlCommand),
+            #[cfg(feature = "render")]
+            Box::new(crate::commands::html_render::HtmlRenderCommand),
             // +-----+
             // | XML |
             // +-----+

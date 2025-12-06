@@ -91,6 +91,56 @@ impl HtmlBackend for BlitzBackend {
     }
 }
 
+impl BlitzBackend {
+    #[cfg(feature = "networking")]
+    pub fn parse_with_web(
+        &self,
+        html: &Value,
+        base_url: String,
+        vp: blitz_traits::shell::Viewport,
+    ) -> Result<HtmlDocument, LabeledError> {
+        let html: &str = match html {
+            Value::String { val, .. } => val,
+            _ => {
+                return Err(LabeledError::new("Input type neither string nor binary"));
+            }
+        };
+        tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap()
+            .block_on(async_parse_with_web(html, base_url, vp))
+    }
+}
+
+#[cfg(feature = "networking")]
+async fn async_parse_with_web(
+    html: &str,
+    base_url: String,
+    vp: blitz_traits::shell::Viewport,
+) -> Result<HtmlDocument, LabeledError> {
+    let (mut recv, cb) = blitz_net::MpscCallback::new();
+    let cb = std::sync::Arc::new(cb);
+    let net = std::sync::Arc::new(blitz_net::Provider::new(cb));
+    let doc_config = DocumentConfig {
+        base_url: Some(base_url),
+        net_provider: Some(std::sync::Arc::clone(&net) as _),
+        viewport: Some(vp),
+        ..Default::default()
+    };
+    let mut dom = HtmlDocument::from_html(html, doc_config);
+    while !net.is_empty() {
+        let Some((_, res)) = recv.recv().await else {
+            break;
+        };
+        dom.load_resource(res);
+
+        // force thread-sync
+        let _ = net.count();
+        let _ = net.is_empty();
+    }
+    Ok(dom)
+}
+
 fn node2html_nu(html: &HtmlDocument, node: &blitz_dom::Node, span: Span) -> Option<Value> {
     let e = match &node.data {
         blitz_dom::NodeData::Document => {
